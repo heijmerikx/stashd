@@ -1,0 +1,23 @@
+# Backup data
+backups/
+
+# Environment files (contain secrets)
+.env
+.env.local
+.env.*.local
+
+# Node modules (if running locally)
+node_modules/
+
+# Build artifacts
+dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db

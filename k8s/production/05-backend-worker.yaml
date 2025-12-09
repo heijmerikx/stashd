@@ -1,0 +1,98 @@
+---
+# Backend Worker Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-worker
+  namespace: stashd
+  labels:
+    app: backend-worker
+    app.kubernetes.io/name: stashd
+    app.kubernetes.io/component: backend-worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend-worker
+  template:
+    metadata:
+      labels:
+        app: backend-worker
+        app.kubernetes.io/name: stashd
+        app.kubernetes.io/component: backend-worker
+    spec:
+      terminationGracePeriodSeconds: 300  # Allow 5 minutes for active backup jobs to complete
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: backend-worker
+          image: ghcr.io/thedutchlab/stashd/backend:production
+          imagePullPolicy: Always
+          env:
+            - name: MODE
+              value: "worker-only"
+            - name: NODE_ENV
+              value: "production"
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: DB_PORT
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: DB_NAME
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: DB_PASSWORD
+            - name: REDIS_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: REDIS_PORT
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: JWT_SECRET
+            - name: ENCRYPTION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: ENCRYPTION_SECRET
+            - name: LICENSE_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: LICENSE_PUBLIC_KEY
+          volumeMounts:
+            - name: temp-backups
+              mountPath: /tmp/stashd-backups
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+      volumes:
+        - name: temp-backups
+          emptyDir: {}

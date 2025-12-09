@@ -1,0 +1,38 @@
+---
+# Ingress for stashd
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: stashd-ingress
+  namespace: stashd
+  labels:
+    app.kubernetes.io/name: stashd
+    app.kubernetes.io/component: ingress
+  annotations:
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - app.stashd.cc
+  rules:
+    - host: app.stashd.cc
+      http:
+        paths:
+          # Backend API routes
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend-service
+                port:
+                  number: 3000
+          # Frontend for all other routes
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend-service
+                port:
+                  number: 80

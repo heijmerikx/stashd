@@ -1,0 +1,36 @@
+FROM node:20-bookworm-slim
+
+WORKDIR /app
+
+# Install database backup tools
+# - PostgreSQL: Multiple versions via apt.postgresql.org
+# - MySQL: Official MySQL 8 client from MySQL APT repo (supports caching_sha2_password)
+# - MongoDB: mongodump from mongodb-database-tools
+# - Redis: redis-cli for RDB dumps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release \
+    && mkdir -p /etc/apt/keyrings \
+    # Add PostgreSQL repo
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /etc/apt/keyrings/postgresql.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+    # Add MongoDB repo
+    && curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc | gpg --dearmor -o /etc/apt/keyrings/mongodb.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/mongodb.gpg] https://repo.mongodb.org/apt/debian bookworm/mongodb-org/7.0 main" > /etc/apt/sources.list.d/mongodb.list \
+    && apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-client-15 \
+    postgresql-client-16 \
+    postgresql-client-17 \
+    default-mysql-client \
+    mongodb-database-tools \
+    redis-tools \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+EXPOSE 3000
+
+ENTRYPOINT ["docker-entrypoint.sh"]

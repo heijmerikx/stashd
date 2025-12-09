@@ -1,0 +1,13 @@
+<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Box frame -->
+  <rect x="4" y="4" width="56" height="8" fill="#18181b" />
+  <rect x="4" y="52" width="56" height="8" fill="#18181b" />
+  <rect x="4" y="4" width="8" height="56" fill="#18181b" />
+  <rect x="52" y="4" width="8" height="56" fill="#18181b" />
+  <!-- Square dots in S-diagonal pattern -->
+  <rect x="28" y="16" width="8" height="8" fill="#18181b" />
+  <rect x="40" y="16" width="8" height="8" fill="#18181b" />
+  <rect x="28" y="28" width="8" height="8" fill="#18181b" />
+  <rect x="16" y="40" width="8" height="8" fill="#18181b" />
+  <rect x="28" y="40" width="8" height="8" fill="#18181b" />
+</svg>
