@@ -13,7 +13,9 @@ RUN npm ci
 COPY . .
 
 # Build the application
-# Set VITE_API_URL env var before build to configure API endpoint
+# VITE_API_URL: Set this env var to your backend URL (e.g., https://backend.example.com/api)
+ARG VITE_API_URL
+ENV VITE_API_URL=${VITE_API_URL}
 RUN npm run build
 
 # Production stage
