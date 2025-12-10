@@ -26,6 +26,52 @@ Testing/stability/feedback, not adding more (significant) features at the moment
 
 ## Deployment Quick Start
 
+### On Railway
+
+#### 1. Deploy Databases
+
+- Deploy a **Redis** container
+- Deploy a **PostgreSQL** container
+
+#### 2. Deploy Backend
+
+1. Create a new service using the **Docker Image** option
+2. Enter the image URL:
+   ```
+   ghcr.io/heijmerikx/stashd-backend:0.1.0-alpha.6
+   ```
+   Choose the latest image tag available.
+3. Configure environment variables (use Railway references to connect to your databases):
+
+   | Variable | Description |
+   |----------|-------------|
+   | `DB_HOST` | PostgreSQL host |
+   | `DB_NAME` | PostgreSQL database name |
+   | `DB_USER` | PostgreSQL user |
+   | `DB_PASSWORD` | PostgreSQL password |
+   | `REDIS_HOST` | Redis host |
+   | `REDIS_USERNAME` | Redis username |
+   | `REDIS_PASSWORD` | Redis password |
+   | `JWT_SECRET` | Secret for JWT signing (32+ chars) |
+   | `ENCRYPTION_SECRET` | Secret for encrypting credentials (32+ chars) |
+   | `CORS_ORIGIN` | Frontend URL (see step 3) |
+
+#### 3. Deploy Frontend
+
+1. Create a new service using the **Docker Image** option
+2. Enter the image URL:
+   ```
+   ghcr.io/heijmerikx/stashd-frontend:0.1.0-alpha.6
+   ```
+   Here too, have the version match the backend image tag
+3. Configure environment variables:
+
+   | Variable | Description |
+   |----------|-------------|
+   | `VITE_API_URL` | Backend URL, e.g. `https://my-stashd-backend.up.railway.app/api` |
+
+4. Update the backend's `CORS_ORIGIN` to match your frontend URL, e.g. `https://my-stashd-frontend.up.railway.app`
+
 ### Docker Compose
 
 1. Create a `.env` file with required variables:
