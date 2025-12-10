@@ -23,11 +23,17 @@ server {
     }
 
     # Proxy API requests to backend
-    # Trailing slash on proxy_pass strips /api/ prefix and passes the rest
     location /api/ {
         proxy_pass ${BACKEND_URL}/api/;
         proxy_http_version 1.1;
-        proxy_set_header Host $host;
+
+        # Use backend hostname for Host header (required for SSL/SNI)
+        proxy_set_header Host ${BACKEND_HOST};
+
+        # SSL settings for HTTPS backends
+        proxy_ssl_server_name on;
+        proxy_ssl_name ${BACKEND_HOST};
+
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
