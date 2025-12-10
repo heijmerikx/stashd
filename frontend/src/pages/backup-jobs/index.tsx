@@ -32,11 +32,22 @@ import {
 import { Plus, Database, Loader2, Clock, Pause, Play, Pencil, Copy, Zap, Search, ArrowUpDown, ArrowUp, ArrowDown, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { RecentRunsIndicator } from '@/components/RecentRunsIndicator';
 import { CreateJobDialog } from './components/CreateJobDialog';
+import { useSettingsStore } from '@/stores/settings';
+
+const PAGE_SIZE_OPTIONS = [5, 10, 15, 20, 25, 50];
 
 export function BackupJobsPage() {
   const navigate = useNavigate();
+  const { backupJobsPageSize, setBackupJobsPageSize } = useSettingsStore();
   const [jobs, setJobs] = useState<BackupJob[]>([]);
   const [stats, setStats] = useState<Record<number, JobStats>>({});
   const [loading, setLoading] = useState(true);
@@ -49,7 +60,6 @@ export function BackupJobsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortField, setSortField] = useState<'name' | 'type' | 'lastRun' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const pageSize = 10;
 
   // Filter and sort jobs
   const filteredAndSortedJobs = useMemo(() => {
@@ -92,8 +102,8 @@ export function BackupJobsPage() {
     return result;
   }, [jobs, searchQuery, sortField, sortDirection, stats]);
 
-  const totalPages = Math.ceil(filteredAndSortedJobs.length / pageSize);
-  const paginatedJobs = filteredAndSortedJobs.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
+  const totalPages = Math.ceil(filteredAndSortedJobs.length / backupJobsPageSize);
+  const paginatedJobs = filteredAndSortedJobs.slice(currentPage * backupJobsPageSize, (currentPage + 1) * backupJobsPageSize);
 
   // Reset to first page when search changes
   useEffect(() => {
@@ -507,39 +517,62 @@ export function BackupJobsPage() {
               </TableBody>
             </Table>
 
-            {totalPages > 1 && (
-              <Pagination className="mt-4">
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious
-                      onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
-                      className={currentPage === 0 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                    />
-                  </PaginationItem>
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    const pageNum = currentPage < 3 ? i : currentPage - 2 + i;
-                    if (pageNum >= totalPages) return null;
-                    return (
-                      <PaginationItem key={pageNum}>
-                        <PaginationLink
-                          onClick={() => setCurrentPage(pageNum)}
-                          isActive={pageNum === currentPage}
-                          className="cursor-pointer"
-                        >
-                          {pageNum + 1}
-                        </PaginationLink>
-                      </PaginationItem>
-                    );
-                  })}
-                  <PaginationItem>
-                    <PaginationNext
-                      onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
-                      className={currentPage >= totalPages - 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
-            )}
+            <div className="flex items-center justify-between mt-4">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>Rows per page</span>
+                <Select
+                  value={String(backupJobsPageSize)}
+                  onValueChange={(value) => {
+                    setBackupJobsPageSize(Number(value));
+                    setCurrentPage(0);
+                  }}
+                >
+                  <SelectTrigger className="w-16 h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAGE_SIZE_OPTIONS.map((size) => (
+                      <SelectItem key={size} value={String(size)}>
+                        {size}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {totalPages > 1 && (
+                <Pagination className="mx-0 w-auto">
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+                        className={currentPage === 0 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                      />
+                    </PaginationItem>
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      const pageNum = currentPage < 3 ? i : currentPage - 2 + i;
+                      if (pageNum >= totalPages) return null;
+                      return (
+                        <PaginationItem key={pageNum}>
+                          <PaginationLink
+                            onClick={() => setCurrentPage(pageNum)}
+                            isActive={pageNum === currentPage}
+                            className="cursor-pointer"
+                          >
+                            {pageNum + 1}
+                          </PaginationLink>
+                        </PaginationItem>
+                      );
+                    })}
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
+                        className={currentPage >= totalPages - 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              )}
+            </div>
             </>
           )}
         </CardContent>

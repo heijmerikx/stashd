@@ -4,6 +4,8 @@ import { persist } from 'zustand/middleware';
 interface SettingsState {
   recentBackupsLimit: number;
   setRecentBackupsLimit: (limit: number) => void;
+  backupJobsPageSize: number;
+  setBackupJobsPageSize: (size: number) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -11,6 +13,8 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       recentBackupsLimit: 10,
       setRecentBackupsLimit: (limit) => set({ recentBackupsLimit: limit }),
+      backupJobsPageSize: 10,
+      setBackupJobsPageSize: (size) => set({ backupJobsPageSize: size }),
     }),
     {
       name: 'stashd-settings',
