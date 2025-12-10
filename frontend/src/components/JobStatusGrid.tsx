@@ -100,7 +100,6 @@ export function JobStatusGrid({ jobs }: JobStatusGridProps) {
         const recentRuns = job.stats.recent_runs || [];
         const isRunning = status === 'running';
         const isDisabled = status === 'disabled';
-        const neverRun = status === 'never-run';
 
         // Build lines array - newest at top (index 0), oldest at bottom
         type LineData = {
@@ -109,17 +108,17 @@ export function JobStatusGrid({ jobs }: JobStatusGridProps) {
           duration_seconds: number | null;
         };
         const lines: LineData[] = [];
+        const hasHistory = recentRuns.length > 0;
         for (let i = 0; i < MAX_RUNS; i++) {
-          if (isDisabled) {
-            lines.push({ status: 'disabled', started_at: null, duration_seconds: null });
-          } else if (neverRun) {
-            lines.push({ status: 'empty', started_at: null, duration_seconds: null });
-          } else if (i < recentRuns.length) {
+          if (i < recentRuns.length) {
+            // Show actual history for both enabled and disabled jobs
             lines.push({
               status: recentRuns[i].status,
               started_at: recentRuns[i].started_at,
               duration_seconds: recentRuns[i].duration_seconds
             });
+          } else if (isDisabled && !hasHistory) {
+            lines.push({ status: 'disabled', started_at: null, duration_seconds: null });
           } else {
             lines.push({ status: 'empty', started_at: null, duration_seconds: null });
           }
