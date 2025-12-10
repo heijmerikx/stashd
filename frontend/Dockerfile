@@ -13,11 +13,9 @@ RUN npm ci
 COPY . .
 
 # Build the application
-# VITE_API_URL: Set this env var to your backend URL (e.g., https://backend.example.com/api)
-ARG VITE_API_URL
-ENV VITE_API_URL=${VITE_API_URL}
+# Note: VITE_API_URL is now configured at runtime via docker-entrypoint.prod.sh
 RUN npm run build
-RUN echo $VITE_API_URL
+
 # Production stage
 FROM nginx:alpine
 
@@ -26,6 +24,11 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Copy built files
 COPY --from=builder /app/dist /usr/share/nginx/html
 
+# Copy entrypoint script
+COPY docker-entrypoint.prod.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+# Use entrypoint to generate runtime config
+ENTRYPOINT ["/docker-entrypoint.sh"]

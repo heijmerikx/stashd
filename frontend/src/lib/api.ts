@@ -1,4 +1,6 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+import { getConfig } from './config';
+
+const API_BASE = getConfig('API_URL');
 
 interface LoginResponse {
   token: string;
