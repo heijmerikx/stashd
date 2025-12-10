@@ -243,7 +243,12 @@ export function startBackupWorker() {
               clearInterval(heartbeatInterval);
               hasFailures = true;
               const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-              await failBackupHistory(historyEntry.id, errorMessage, backupResult.executionLog);
+              // Use error's execution log if available, otherwise fall back to backup's log
+              const errorExecutionLog = (error as Error & { executionLog?: string }).executionLog;
+              const combinedLog = errorExecutionLog
+                ? (backupResult.executionLog ? `${backupResult.executionLog}\n${errorExecutionLog}` : errorExecutionLog)
+                : backupResult.executionLog;
+              await failBackupHistory(historyEntry.id, errorMessage, combinedLog);
               results.push({ destination, error: errorMessage });
               console.error(`Failed to copy to destination ${destination.name}:`, error);
             }

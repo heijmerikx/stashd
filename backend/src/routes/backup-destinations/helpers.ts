@@ -132,7 +132,8 @@ export function resolveS3Config(
   return {
     ...baseConfig,
     endpoint: decrypted.endpoint,
-    region: decrypted.region,
+    // Default to 'auto' for S3-compatible services that don't need a real region
+    region: decrypted.region || 'auto',
     access_key_id: decrypted.access_key_id,
     secret_access_key: decrypted.secret_access_key,
   };

@@ -244,7 +244,7 @@ export async function executeBackup(
       bucket: destConfig.bucket,
       prefix: destConfig.prefix,
       endpoint: providerConfig.endpoint as string | undefined,
-      region: providerConfig.region as string,
+      region: (providerConfig.region as string) || 'auto',
       access_key_id: providerConfig.access_key_id as string,
       secret_access_key: providerConfig.secret_access_key as string,
     };
@@ -281,7 +281,17 @@ export async function executeBackup(
       await unlink(result.filePath).catch(() => {
         // Ignore cleanup errors
       });
-      throw error;
+
+      // Enhance error with execution log for better debugging
+      const errorMessage = error instanceof Error ? error.message : 'Unknown S3 upload error';
+      const s3ErrorLog = `[${new Date().toISOString()}] S3 upload failed: ${errorMessage}`;
+      const executionLog = result.executionLog
+        ? `${result.executionLog}\n${s3ErrorLog}`
+        : s3ErrorLog;
+
+      const enhancedError = new Error(errorMessage) as Error & { executionLog?: string };
+      enhancedError.executionLog = executionLog;
+      throw enhancedError;
     }
   }
 
@@ -367,21 +377,31 @@ export async function copyBackupToDestination(
       bucket: destConfig.bucket,
       prefix: destConfig.prefix,
       endpoint: providerConfig.endpoint as string | undefined,
-      region: providerConfig.region as string,
+      region: (providerConfig.region as string) || 'auto',
       access_key_id: providerConfig.access_key_id as string,
       secret_access_key: providerConfig.secret_access_key as string,
     };
 
-    const { key } = await uploadToS3(s3Config, sourceFilePath, fileName);
-    const stats = await stat(sourceFilePath);
+    try {
+      const { key } = await uploadToS3(s3Config, sourceFilePath, fileName);
+      const stats = await stat(sourceFilePath);
 
-    logLines.push(`[${new Date().toISOString()}] Uploaded to S3: s3://${s3Config.bucket}/${key}`);
+      logLines.push(`[${new Date().toISOString()}] Uploaded to S3: s3://${s3Config.bucket}/${key}`);
 
-    return {
-      fileSize: stats.size,
-      filePath: `s3://${s3Config.bucket}/${key}`,
-      executionLog: logLines.join('\n'),
-    };
+      return {
+        fileSize: stats.size,
+        filePath: `s3://${s3Config.bucket}/${key}`,
+        executionLog: logLines.join('\n'),
+      };
+    } catch (error) {
+      // Enhance error with execution log for better debugging
+      const errorMessage = error instanceof Error ? error.message : 'Unknown S3 upload error';
+      logLines.push(`[${new Date().toISOString()}] S3 upload failed: ${errorMessage}`);
+
+      const enhancedError = new Error(errorMessage) as Error & { executionLog?: string };
+      enhancedError.executionLog = logLines.join('\n');
+      throw enhancedError;
+    }
   }
 
   throw new Error(`Unsupported destination type: ${destination.type}`);
@@ -836,7 +856,7 @@ async function executeS3Backup(
       bucket: destBaseConfig.bucket,
       prefix: destBaseConfig.prefix,
       endpoint: providerConfig.endpoint as string | undefined,
-      region: providerConfig.region as string,
+      region: (providerConfig.region as string) || 'auto',
       access_key_id: providerConfig.access_key_id as string,
       secret_access_key: providerConfig.secret_access_key as string,
     };
