@@ -22,11 +22,9 @@ spec:
         app.kubernetes.io/component: backend-worker
     spec:
       terminationGracePeriodSeconds: 300  # Allow 5 minutes for active backup jobs to complete
-      imagePullSecrets:
-        - name: ghcr-secret
       containers:
         - name: backend-worker
-          image: ghcr.io/thedutchlab/stashd/backend:production
+          image: ghcr.io/heijmerikx/stashd-backend:0.1.0-alpha.9
           imagePullPolicy: Always
           env:
             - name: MODE

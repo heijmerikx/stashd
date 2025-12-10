@@ -38,7 +38,7 @@ Testing/stability/feedback, not adding more (significant) features at the moment
 1. Create a new service using the **Docker Image** option
 2. Enter the image URL:
    ```
-   ghcr.io/heijmerikx/stashd-backend:0.1.0-alpha.6
+   ghcr.io/heijmerikx/stashd-backend:0.1.0-alpha.9
    ```
    Choose the latest image tag available.
 3. Configure environment variables (use Railway references to connect to your databases):
@@ -60,7 +60,7 @@ Testing/stability/feedback, not adding more (significant) features at the moment
 1. Create a new service using the **Docker Image** option
 2. Enter the image URL:
    ```
-   ghcr.io/heijmerikx/stashd-frontend:0.1.0-alpha.6
+   ghcr.io/heijmerikx/stashd-frontend:0.1.0-alpha.9
    ```
    Here too, have the version match the backend image tag
 3. Configure environment variables:

@@ -15,9 +15,9 @@ spec:
   ingressClassName: traefik
   tls:
     - hosts:
-        - app.stashd.cc
+        - stashd.example.com
   rules:
-    - host: app.stashd.cc
+    - host: stashd.example.com
       http:
         paths:
           # Backend API routes

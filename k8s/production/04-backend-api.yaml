@@ -21,11 +21,9 @@ spec:
         app.kubernetes.io/name: stashd
         app.kubernetes.io/component: backend-api
     spec:
-      imagePullSecrets:
-        - name: ghcr-secret
       containers:
         - name: backend-api
-          image: ghcr.io/thedutchlab/stashd/backend:production
+          image: ghcr.io/heijmerikx/stashd-backend:0.1.0-alpha.9
           imagePullPolicy: Always
           ports:
             - containerPort: 3000

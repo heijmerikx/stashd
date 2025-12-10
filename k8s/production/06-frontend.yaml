@@ -21,11 +21,9 @@ spec:
         app.kubernetes.io/name: stashd
         app.kubernetes.io/component: frontend
     spec:
-      imagePullSecrets:
-        - name: ghcr-secret
       containers:
         - name: frontend
-          image: ghcr.io/thedutchlab/stashd/frontend:production
+          image: ghcr.io/heijmerikx/stashd-frontend:0.1.0-alpha.9
           imagePullPolicy: Always
           ports:
             - containerPort: 80
