@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { LoginPage } from '@/pages/auth';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { DashboardPage } from '@/pages/dashboard';
@@ -93,8 +94,9 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
-      <Routes>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Routes>
         <Route
           path="/login"
           element={
@@ -127,8 +129,9 @@ function App() {
           path="*"
           element={<Navigate to={authenticated ? "/dashboard" : "/login"} replace />}
         />
-      </Routes>
-    </BrowserRouter>
+        </Routes>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 
