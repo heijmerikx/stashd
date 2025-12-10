@@ -2,6 +2,7 @@ import { useParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
 import { useBackupJobDetail } from '@/hooks/useBackupJobDetail';
+import { useFormKeyboardSubmit } from '@/hooks/useFormKeyboardSubmit';
 import {
   JobHeader,
   SettingsTab,
@@ -82,6 +83,11 @@ export function BackupJobDetailPage() {
 
     scheduleDescription,
   } = useBackupJobDetail(jobId);
+
+  useFormKeyboardSubmit({
+    enabled: !loading && !saving && activeTab === 'settings',
+    onSubmit: handleSave,
+  });
 
   if (loading) {
     return (

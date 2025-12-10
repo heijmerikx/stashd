@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import cronstrue from 'cronstrue';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   getBackupJobs,
@@ -21,7 +29,8 @@ import {
   type BackupJob,
   type JobStats,
 } from '@/lib/api';
-import { Plus, Database, Loader2, Clock, Pause, Play, Pencil, Copy, Zap } from 'lucide-react';
+import { Plus, Database, Loader2, Clock, Pause, Play, Pencil, Copy, Zap, Search, ArrowUpDown, ArrowUp, ArrowDown, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { RecentRunsIndicator } from '@/components/RecentRunsIndicator';
 import { CreateJobDialog } from './components/CreateJobDialog';
@@ -36,6 +45,84 @@ export function BackupJobsPage() {
   const [togglingJob, setTogglingJob] = useState<number | null>(null);
   const [runningJob, setRunningJob] = useState<number | null>(null);
   const [duplicatingJob, setDuplicatingJob] = useState<number | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortField, setSortField] = useState<'name' | 'type' | 'lastRun' | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const pageSize = 10;
+
+  // Filter and sort jobs
+  const filteredAndSortedJobs = useMemo(() => {
+    let result = [...jobs];
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(job =>
+        job.name.toLowerCase().includes(query) ||
+        job.type.toLowerCase().includes(query)
+      );
+    }
+
+    // Sort
+    if (sortField) {
+      result.sort((a, b) => {
+        let comparison = 0;
+        switch (sortField) {
+          case 'name':
+            comparison = a.name.localeCompare(b.name);
+            break;
+          case 'type':
+            comparison = a.type.localeCompare(b.type);
+            break;
+          case 'lastRun': {
+            const aLastRun = stats[a.id]?.last_run;
+            const bLastRun = stats[b.id]?.last_run;
+            if (!aLastRun && !bLastRun) comparison = 0;
+            else if (!aLastRun) comparison = 1;
+            else if (!bLastRun) comparison = -1;
+            else comparison = new Date(aLastRun).getTime() - new Date(bLastRun).getTime();
+            break;
+          }
+        }
+        return sortDirection === 'desc' ? -comparison : comparison;
+      });
+    }
+
+    return result;
+  }, [jobs, searchQuery, sortField, sortDirection, stats]);
+
+  const totalPages = Math.ceil(filteredAndSortedJobs.length / pageSize);
+  const paginatedJobs = filteredAndSortedJobs.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
+
+  // Reset to first page when search changes
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [searchQuery]);
+
+  function handleSort(field: 'name' | 'type' | 'lastRun') {
+    if (sortField === field) {
+      // Toggle direction or clear sort
+      if (sortDirection === 'asc') {
+        setSortDirection('desc');
+      } else {
+        setSortField(null);
+        setSortDirection('asc');
+      }
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  }
+
+  function getSortIcon(field: 'name' | 'type' | 'lastRun') {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-3 w-3 ml-1 opacity-50" />;
+    }
+    return sortDirection === 'asc'
+      ? <ArrowUp className="h-3 w-3 ml-1" />
+      : <ArrowDown className="h-3 w-3 ml-1" />;
+  }
 
   useEffect(() => {
     document.title = 'Backup Jobs - Stashd';
@@ -223,29 +310,90 @@ export function BackupJobsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Jobs</CardTitle>
-          <CardDescription>
-            {jobs.length} backup job{jobs.length !== 1 && 's'} configured
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Jobs</CardTitle>
+              <CardDescription>
+                {filteredAndSortedJobs.length === jobs.length
+                  ? `${jobs.length} backup job${jobs.length !== 1 ? 's' : ''} configured`
+                  : `${filteredAndSortedJobs.length} of ${jobs.length} job${jobs.length !== 1 ? 's' : ''}`}
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              {(searchQuery || sortField) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSortField(null);
+                    setSortDirection('asc');
+                  }}
+                  className="h-9 px-2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Reset
+                </Button>
+              )}
+              <div className="relative w-64">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search jobs..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 h-9"
+                />
+              </div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {jobs.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
               No backup jobs configured yet.
             </p>
+          ) : filteredAndSortedJobs.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              No jobs match your search.
+            </p>
           ) : (
+            <>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Schedule / Last Run</TableHead>
+                  <TableHead>
+                    <button
+                      onClick={() => handleSort('name')}
+                      className="flex items-center hover:text-foreground cursor-pointer"
+                    >
+                      Name
+                      {getSortIcon('name')}
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      onClick={() => handleSort('type')}
+                      className="flex items-center hover:text-foreground cursor-pointer"
+                    >
+                      Type
+                      {getSortIcon('type')}
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      onClick={() => handleSort('lastRun')}
+                      className="flex items-center hover:text-foreground cursor-pointer"
+                    >
+                      Schedule / Last Run
+                      {getSortIcon('lastRun')}
+                    </button>
+                  </TableHead>
                   <TableHead>Recent Runs</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {jobs.map((job) => (
+                {paginatedJobs.map((job) => (
                   <TableRow key={job.id}>
                     <TableCell>
                       <button
@@ -358,6 +506,41 @@ export function BackupJobsPage() {
                 ))}
               </TableBody>
             </Table>
+
+            {totalPages > 1 && (
+              <Pagination className="mt-4">
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+                      className={currentPage === 0 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    const pageNum = currentPage < 3 ? i : currentPage - 2 + i;
+                    if (pageNum >= totalPages) return null;
+                    return (
+                      <PaginationItem key={pageNum}>
+                        <PaginationLink
+                          onClick={() => setCurrentPage(pageNum)}
+                          isActive={pageNum === currentPage}
+                          className="cursor-pointer"
+                        >
+                          {pageNum + 1}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  })}
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
+                      className={currentPage >= totalPages - 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            )}
+            </>
           )}
         </CardContent>
       </Card>
