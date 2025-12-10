@@ -23,8 +23,11 @@ function setRefreshTokenCookie(res: Response, refreshToken: string): void {
 }
 
 function clearRefreshTokenCookie(res: Response): void {
+  const isProduction = process.env.NODE_ENV === 'production';
   res.clearCookie(REFRESH_TOKEN_COOKIE, {
     httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'strict' : 'lax',
     path: '/api/auth',
   });
 }

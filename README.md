@@ -54,7 +54,6 @@ Testing/stability/feedback, not adding more (significant) features at the moment
    | `REDIS_PASSWORD` | Redis password |
    | `JWT_SECRET` | Secret for JWT signing (32+ chars) |
    | `ENCRYPTION_SECRET` | Secret for encrypting credentials (32+ chars) |
-   | `CORS_ORIGIN` | Frontend URL (see step 3) |
 
 #### 3. Deploy Frontend
 
@@ -68,9 +67,9 @@ Testing/stability/feedback, not adding more (significant) features at the moment
 
    | Variable | Description |
    |----------|-------------|
-   | `VITE_API_URL` | Backend URL, e.g. `https://my-stashd-backend.up.railway.app/api` |
+   | `BACKEND_URL` | Internal backend URL, e.g. `https://my-stashd-backend.up.railway.app` (without `/api`) |
 
-4. Update the backend's `CORS_ORIGIN` to match your frontend URL, e.g. `https://my-stashd-frontend.up.railway.app`
+   The frontend nginx proxies `/api` requests to the backend, so no CORS configuration is needed.
 
 ### Docker Compose
 
@@ -140,7 +139,7 @@ This starts:
 - `CORS_ORIGIN` - Allowed CORS origin
 
 ### Frontend
-- `VITE_API_URL` - Backend API URL
+- `BACKEND_URL` - Backend URL for nginx proxy (e.g. `http://backend:8080`)
 
 ## Deployment
 

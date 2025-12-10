@@ -13,13 +13,13 @@ RUN npm ci
 COPY . .
 
 # Build the application
-# Note: VITE_API_URL is now configured at runtime via docker-entrypoint.prod.sh
 RUN npm run build
 
 # Production stage
 FROM nginx:alpine
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy nginx config template (will be processed at runtime)
+COPY nginx.conf.template /etc/nginx/conf.d/default.conf.template
 
 # Copy built files
 COPY --from=builder /app/dist /usr/share/nginx/html
@@ -30,5 +30,5 @@ RUN chmod +x /docker-entrypoint.sh
 
 EXPOSE 80
 
-# Use entrypoint to generate runtime config
+# Use entrypoint to configure nginx and start
 ENTRYPOINT ["/docker-entrypoint.sh"]
