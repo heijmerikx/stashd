@@ -23,8 +23,9 @@ server {
     }
 
     # Proxy API requests to backend
+    # Trailing slash on proxy_pass strips /api/ prefix and passes the rest
     location /api/ {
-        proxy_pass ${BACKEND_URL};
+        proxy_pass ${BACKEND_URL}/api/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
