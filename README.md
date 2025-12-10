@@ -20,6 +20,10 @@
 
 ---
 
+![Stashd Dashboard](dashboard.png)
+
+---
+
 ## Focus
 
 Testing/stability/feedback, not adding more (significant) features at the moment. 
