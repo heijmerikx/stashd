@@ -3,6 +3,10 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# App version from git tag (passed at build time)
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
+
 # Copy package files
 COPY package*.json ./
 

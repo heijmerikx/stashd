@@ -170,6 +170,9 @@ export function AppSidebar({ user, onLogout, ...props }: AppSidebarProps) {
               </span>
             </Link>
           )}
+          <div className="text-center text-xs text-muted-foreground/50">
+            {__APP_VERSION__}
+          </div>
         </div>
         <NavUser user={{ name: user.name || user.email.split('@')[0], email: user.email, avatar: "" }} />
         <SidebarMenu>
