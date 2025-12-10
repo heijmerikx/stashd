@@ -666,7 +666,7 @@ async function executeMySQLBackup(config: MySQLConfig, backupDir: string): Promi
     '-h', host,
     '-P', String(port),
     '-u', username,
-    `--ssl-mode=${useSSL ? 'REQUIRED' : 'DISABLED'}`,
+    useSSL ? '--ssl' : '--skip-ssl',
     '--result-file', tempFilePath,
     database
   ];
