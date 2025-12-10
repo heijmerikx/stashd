@@ -5,8 +5,9 @@
   "license": "Apache-2.0 OR LicenseRef-Commercial",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "generate-security-txt": "node scripts/generate-security-txt.js",
+    "dev": "npm run generate-security-txt && vite",
+    "build": "npm run generate-security-txt && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
