@@ -122,6 +122,7 @@ export function startBackupWorker() {
 
       const { name, type, config, source_credential_provider_id } = backupJob;
       const runId = randomUUID();
+      const startTime = Date.now();
       console.log(`Starting backup job: ${name} (ID: ${jobId}, Run: ${runId})`);
 
       // Decrypt sensitive fields in the job config
@@ -271,12 +272,14 @@ export function startBackupWorker() {
       }));
 
       // Send consolidated notifications
+      const durationSeconds = Math.round((Date.now() - startTime) / 1000);
       if (hasFailures) {
         const failedDestinations = results.filter(r => r.error).map(r => r.destination.name);
         await sendJobNotifications(jobId, 'failure', {
           jobName: name,
           jobType: type,
           error: `Backup failed for destinations: ${failedDestinations.join(', ')}`,
+          durationSeconds,
           destinations: destinationResults
         });
       } else {
@@ -285,6 +288,7 @@ export function startBackupWorker() {
           jobName: name,
           jobType: type,
           fileSize: totalSize,
+          durationSeconds,
           destinations: destinationResults
         });
       }
@@ -359,6 +363,7 @@ async function sendJobNotifications(
     fileSize?: number;
     filePath?: string;
     error?: string;
+    durationSeconds?: number;
     destinations?: Array<{
       name: string;
       status: 'completed' | 'failed';

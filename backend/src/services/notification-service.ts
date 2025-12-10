@@ -16,6 +16,7 @@ interface NotificationData {
   fileSize?: number;
   filePath?: string;
   error?: string;
+  durationSeconds?: number;
   destinations?: DestinationResult[];
 }
 
@@ -158,6 +159,10 @@ async function sendDiscordNotification(
     fields.push({ name: 'Error', value: data.error || 'Unknown error', inline: false });
   }
 
+  if (data.durationSeconds !== undefined) {
+    fields.push({ name: 'Duration', value: formatDuration(data.durationSeconds), inline: true });
+  }
+
   // Add destination results if available
   if (data.destinations && data.destinations.length > 0) {
     const destSummary = data.destinations.map(d => {
@@ -217,12 +222,17 @@ function generateSuccessEmail(data: NotificationData): string {
     `
     : '';
 
+  const durationHtml = data.durationSeconds !== undefined
+    ? `<p><strong>Duration:</strong> ${formatDuration(data.durationSeconds)}</p>`
+    : '';
+
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #22c55e;">Backup Completed Successfully</h2>
       <p><strong>Job Name:</strong> ${data.jobName}</p>
       <p><strong>Type:</strong> ${formatJobType(data.jobType)}</p>
       <p><strong>Total Size:</strong> ${formatBytes(data.fileSize || 0)}</p>
+      ${durationHtml}
       <p><strong>Time:</strong> ${new Date().toISOString()}</p>
       ${destinationsHtml}
       <hr style="border: 1px solid #e5e5e5; margin: 20px 0;">
@@ -252,12 +262,17 @@ function generateFailureEmail(data: NotificationData): string {
     `
     : '';
 
+  const durationHtml = data.durationSeconds !== undefined
+    ? `<p><strong>Duration:</strong> ${formatDuration(data.durationSeconds)}</p>`
+    : '';
+
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #ef4444;">Backup Failed</h2>
       <p><strong>Job Name:</strong> ${data.jobName}</p>
       <p><strong>Type:</strong> ${formatJobType(data.jobType)}</p>
       <p><strong>Error:</strong> ${data.error || 'Unknown error'}</p>
+      ${durationHtml}
       <p><strong>Time:</strong> ${new Date().toISOString()}</p>
       ${destinationsHtml}
       <hr style="border: 1px solid #e5e5e5; margin: 20px 0;">
@@ -272,6 +287,20 @@ function formatBytes(bytes: number): string {
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function formatDuration(seconds: number): string {
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (minutes < 60) {
+    return remainingSeconds > 0 ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
 }
 
 export async function testNotificationChannel(channelId: number): Promise<{ success: boolean; error?: string }> {
