@@ -6,15 +6,11 @@ import {
   Database,
   HardDrive,
   Bell,
-  LogOut,
   HelpCircle,
   KeyRound,
   Building2,
   Code2,
   ClipboardList,
-  Moon,
-  Sun,
-  Monitor,
   Key,
   Users,
   TriangleAlert,
@@ -24,16 +20,12 @@ import {
 import { Link } from "react-router-dom"
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
-import { useTheme } from "@/components/theme-provider"
 import { Logo } from "@/components/logo"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { getLicenseStatus, type LicenseStatus } from "@/lib/api"
 
@@ -108,7 +100,6 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 export function AppSidebar({ user, onLogout, ...props }: AppSidebarProps) {
   const [licenseStatus, setLicenseStatus] = React.useState<LicenseStatus | null>(null);
-  const { theme, setTheme } = useTheme();
 
   React.useEffect(() => {
     getLicenseStatus()
@@ -174,29 +165,7 @@ export function AppSidebar({ user, onLogout, ...props }: AppSidebarProps) {
             {__APP_VERSION__}
           </div>
         </div>
-        <NavUser user={{ name: user.name || user.email.split('@')[0], email: user.email, avatar: "" }} />
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={() => {
-                if (theme === 'light') setTheme('dark');
-                else if (theme === 'dark') setTheme('system');
-                else setTheme('light');
-              }}
-            >
-              {theme === 'light' && <Sun className="size-4" />}
-              {theme === 'dark' && <Moon className="size-4" />}
-              {theme === 'system' && <Monitor className="size-4" />}
-              <span className="capitalize">{theme}</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton onClick={onLogout}>
-              <LogOut className="size-4" />
-              <span>Logout</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <NavUser user={{ name: user.name || user.email.split('@')[0], email: user.email, avatar: "" }} onLogout={onLogout} />
       </SidebarFooter>
     </Sidebar>
   )

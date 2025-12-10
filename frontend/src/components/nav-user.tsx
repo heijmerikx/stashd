@@ -3,8 +3,12 @@ import {
   BadgeCheck,
   ChevronsUpDown,
   LogOut,
+  Moon,
+  Monitor,
   Sparkles,
+  Sun,
 } from "lucide-react"
+import { useTheme } from "@/components/theme-provider"
 
 import {
   Avatar,
@@ -40,16 +44,31 @@ function getInitials(email: string): string {
 
 export function NavUser({
   user,
+  onLogout,
 }: {
   user: {
     name: string
     email: string
     avatar: string
   }
+  onLogout: () => void
 }) {
   const { isMobile, setOpenMobile } = useSidebar()
   const navigate = useNavigate()
+  const { theme, setTheme } = useTheme()
   const initials = getInitials(user.email)
+
+  function cycleTheme() {
+    if (theme === 'light') setTheme('dark')
+    else if (theme === 'dark') setTheme('system')
+    else setTheme('light')
+  }
+
+  function getThemeIcon() {
+    if (theme === 'light') return <Sun className="size-4" />
+    if (theme === 'dark') return <Moon className="size-4" />
+    return <Monitor className="size-4" />
+  }
 
   const handleNavigate = (path: string) => {
     setOpenMobile(false)
@@ -104,9 +123,13 @@ export function NavUser({
                 <Sparkles />
                 License
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={cycleTheme}>
+                {getThemeIcon()}
+                <span className="capitalize">{theme}</span>
+              </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={onLogout}>
               <LogOut />
               Log out
             </DropdownMenuItem>
