@@ -141,8 +141,8 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
       <div className="flex-1 flex items-center justify-center p-8 bg-background">
         <div className="w-full max-w-sm space-y-8">
           {/* Mobile logo */}
-          <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
-            <Logo size="lg" inverted />
+          <div className="lg:hidden flex items-center justify-center gap-3 mb-8 text-primary">
+            <Logo size="lg" />
             <span className="text-2xl font-semibold tracking-tight">stashd</span>
           </div>
 
