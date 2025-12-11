@@ -1,6 +1,6 @@
 import { spawn } from 'child_process';
 import { createWriteStream } from 'fs';
-import { mkdir, stat, unlink, rm, writeFile, copyFile } from 'fs/promises';
+import { mkdir, stat, unlink, rm, writeFile } from 'fs/promises';
 import path from 'path';
 import { pipeline } from 'stream/promises';
 import { createGzip } from 'zlib';
@@ -321,90 +321,6 @@ export async function executeBackupToTemp(
     default:
       throw new Error(`Unsupported backup type: ${type}`);
   }
-}
-
-export interface CopyResult {
-  fileSize: number;
-  filePath: string;
-  executionLog: string;
-}
-
-/**
- * Copy an existing backup file to a destination (local or S3).
- * Used after executeBackupToTemp to distribute the backup to multiple destinations.
- */
-export async function copyBackupToDestination(
-  sourceFilePath: string,
-  destination: BackupDestination
-): Promise<CopyResult> {
-  const fileName = path.basename(sourceFilePath);
-  const logLines: string[] = [];
-  logLines.push(`[${new Date().toISOString()}] Copying backup to destination: ${destination.name}`);
-
-  if (destination.type === 'local') {
-    const config = destination.config as LocalDestinationConfig;
-    const destDir = config.path || DEFAULT_BACKUP_DIR;
-    const destPath = path.join(destDir, fileName);
-
-    await mkdir(destDir, { recursive: true });
-    await copyFile(sourceFilePath, destPath);
-
-    const stats = await stat(destPath);
-    logLines.push(`[${new Date().toISOString()}] Copied to: ${destPath} (${stats.size} bytes)`);
-
-    return {
-      fileSize: stats.size,
-      filePath: destPath,
-      executionLog: logLines.join('\n'),
-    };
-  } else if (destination.type === 's3') {
-    if (!destination.credential_provider_id) {
-      throw new Error('S3 destination requires a credential provider');
-    }
-
-    const provider = await getCredentialProviderById(destination.credential_provider_id);
-    if (!provider) {
-      throw new Error(`Credential provider ${destination.credential_provider_id} not found`);
-    }
-
-    const providerConfig = decryptSensitiveFields(
-      provider.config as unknown as Record<string, unknown>,
-      ['access_key_id', 'secret_access_key']
-    );
-
-    const destConfig = destination.config as { bucket: string; prefix?: string };
-    const s3Config: S3DestinationConfigFull = {
-      bucket: destConfig.bucket,
-      prefix: destConfig.prefix,
-      endpoint: providerConfig.endpoint as string | undefined,
-      region: (providerConfig.region as string) || 'auto',
-      access_key_id: providerConfig.access_key_id as string,
-      secret_access_key: providerConfig.secret_access_key as string,
-    };
-
-    try {
-      const { key } = await uploadToS3(s3Config, sourceFilePath, fileName);
-      const stats = await stat(sourceFilePath);
-
-      logLines.push(`[${new Date().toISOString()}] Uploaded to S3: s3://${s3Config.bucket}/${key}`);
-
-      return {
-        fileSize: stats.size,
-        filePath: `s3://${s3Config.bucket}/${key}`,
-        executionLog: logLines.join('\n'),
-      };
-    } catch (error) {
-      // Enhance error with execution log for better debugging
-      const errorMessage = error instanceof Error ? error.message : 'Unknown S3 upload error';
-      logLines.push(`[${new Date().toISOString()}] S3 upload failed: ${errorMessage}`);
-
-      const enhancedError = new Error(errorMessage) as Error & { executionLog?: string };
-      enhancedError.executionLog = logLines.join('\n');
-      throw enhancedError;
-    }
-  }
-
-  throw new Error(`Unsupported destination type: ${destination.type}`);
 }
 
 interface PostgresConfig {
