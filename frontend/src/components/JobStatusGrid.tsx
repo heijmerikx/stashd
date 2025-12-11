@@ -78,7 +78,15 @@ function formatDuration(seconds: number | null): string {
 function formatTime(dateStr: string | null): string {
   if (!dateStr) return '--:--';
   const date = new Date(dateStr);
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return date.toLocaleDateString(undefined, {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit',
+  }) + ' ' + date.toLocaleTimeString(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
 }
 
 const MAX_RUNS = 5;
@@ -169,7 +177,7 @@ export function JobStatusGrid({ jobs }: JobStatusGridProps) {
                           : formatTime(line.started_at)
                         }
                       </span>
-                      <span className={`text-[10px] font-mono ${textColor}`}>
+                      <span className="text-[10px] font-mono text-muted-foreground">
                         {line.status === 'empty' || line.status === 'disabled'
                           ? ''
                           : line.status === 'running'

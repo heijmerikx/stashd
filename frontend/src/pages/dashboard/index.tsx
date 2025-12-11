@@ -187,7 +187,7 @@ export function DashboardPage() {
               Backup Jobs
             </CardTitle>
             <CardDescription>
-              Recent run history with timestamps and duration
+              Recent run history
             </CardDescription>
           </CardHeader>
           <CardContent>

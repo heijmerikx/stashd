@@ -40,7 +40,16 @@ export function RecentBackupsCard({ backups }: RecentBackupsCardProps) {
   const { recentBackupsLimit, setRecentBackupsLimit } = useSettingsStore();
 
   function formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleString();
+    const date = new Date(dateStr);
+    return date.toLocaleDateString(undefined, {
+      day: '2-digit',
+      month: '2-digit',
+      year: '2-digit',
+    }) + ' ' + date.toLocaleTimeString(undefined, {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
   }
 
   function getStatusBadge(status: string) {
