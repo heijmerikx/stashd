@@ -43,7 +43,7 @@ function createS3Client(config: S3DestinationConfigFull): S3Client {
     },
   };
 
-  // Support S3-compatible storage (MinIO, Backblaze B2, etc.)
+  // Support S3-compatible storage (AWS S3, Cloudflare R2, Railway, etc.)
   if (config.endpoint) {
     clientConfig.endpoint = config.endpoint;
     clientConfig.forcePathStyle = true; // Required for most S3-compatible services

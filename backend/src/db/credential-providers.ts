@@ -4,7 +4,7 @@ import { pool } from './index.js';
 export type S3ProviderPreset = 'aws' | 'hetzner' | 'backblaze' | 'wasabi' | 'minio' | 'cloudflare' | 'custom';
 
 export interface S3CredentialConfig {
-  endpoint?: string; // For S3-compatible storage (Hetzner, MinIO, etc.)
+  endpoint?: string; // For S3-compatible storage (Hetzner, Railway, etc.)
   region?: string;   // Required for AWS, optional/ignored for most S3-compatible services
   access_key_id: string;
   secret_access_key: string;

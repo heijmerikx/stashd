@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-// S3-compatible provider presets
-export const S3_PROVIDER_PRESETS = ['aws', 'hetzner', 'backblaze', 'wasabi', 'minio', 'cloudflare', 'railway', 'custom'] as const;
+// S3-compatible provider presets (only tested providers)
+export const S3_PROVIDER_PRESETS = ['aws', 'cloudflare', 'hetzner', 'custom'] as const;
 export type S3ProviderPreset = typeof S3_PROVIDER_PRESETS[number];
 
 const s3CredentialConfigSchema = z.object({

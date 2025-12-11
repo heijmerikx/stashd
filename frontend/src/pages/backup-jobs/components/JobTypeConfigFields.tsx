@@ -245,7 +245,7 @@ export function JobTypeConfigFields({ type, values, onChange }: JobTypeConfigFie
             placeholder="https://s3.eu-central-1.amazonaws.com"
           />
           <p className="text-xs text-muted-foreground">
-            For S3-compatible storage (MinIO, Backblaze, etc.)
+            For S3-compatible storage (AWS s3, Cloudflare R2, Railway, etc.)
           </p>
         </div>
 

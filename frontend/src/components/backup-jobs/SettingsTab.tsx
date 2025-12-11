@@ -240,7 +240,7 @@ export function SettingsTab({
                   onChange={(e) => updateForm('s3Endpoint', e.target.value)}
                   placeholder="https://s3.eu-central-1.amazonaws.com"
                 />
-                <p className="text-xs text-muted-foreground">For S3-compatible storage (MinIO, Backblaze, etc.)</p>
+                <p className="text-xs text-muted-foreground">For S3-compatible storage (AWS S3, Cloudflare R2, Railway, etc.)</p>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">

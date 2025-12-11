@@ -67,30 +67,6 @@ const PROVIDER_PRESETS: Record<S3ProviderPreset, {
     showRegion: false,
     regionRequired: false,
   },
-  backblaze: {
-    name: 'Backblaze B2',
-    description: 'Backblaze B2 Cloud Storage',
-    endpointPlaceholder: 'https://s3.us-west-000.backblazeb2.com',
-    endpointHelp: 'Your B2 S3-compatible endpoint',
-    showRegion: false,
-    regionRequired: false,
-  },
-  wasabi: {
-    name: 'Wasabi',
-    description: 'Wasabi Hot Cloud Storage',
-    endpointPlaceholder: 'https://s3.wasabisys.com',
-    endpointHelp: 'Wasabi S3 endpoint for your region',
-    showRegion: false,
-    regionRequired: false,
-  },
-  minio: {
-    name: 'MinIO',
-    description: 'Self-hosted MinIO server',
-    endpointPlaceholder: 'https://minio.example.com:9000',
-    endpointHelp: 'Your MinIO server endpoint',
-    showRegion: false,
-    regionRequired: false,
-  },
   cloudflare: {
     name: 'Cloudflare R2',
     description: 'Cloudflare R2 Storage',
@@ -124,9 +100,6 @@ function getProviderIcon(preset: S3ProviderPreset): string {
   switch (preset) {
     case 'aws': return 'AWS';
     case 'hetzner': return 'Hetzner';
-    case 'backblaze': return 'B2';
-    case 'wasabi': return 'Wasabi';
-    case 'minio': return 'MinIO';
     case 'cloudflare': return 'R2';
     case 'railway': return 'Railway';
     default: return 'S3';
@@ -482,11 +455,8 @@ export function CredentialProvidersPage() {
                 <SelectContent>
                   <SelectItem value="hetzner">Hetzner Object Storage</SelectItem>
                   <SelectItem value="aws">Amazon S3</SelectItem>
-                  <SelectItem value="backblaze">Backblaze B2</SelectItem>
-                  <SelectItem value="wasabi">Wasabi</SelectItem>
                   <SelectItem value="cloudflare">Cloudflare R2</SelectItem>
                   <SelectItem value="railway">Railway</SelectItem>
-                  <SelectItem value="minio">MinIO (Self-hosted)</SelectItem>
                   <SelectItem value="custom">Custom / Other S3-compatible</SelectItem>
                 </SelectContent>
               </Select>

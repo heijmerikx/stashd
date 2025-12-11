@@ -782,7 +782,7 @@ export async function removeLicense(): Promise<{ message: string }> {
 }
 
 // Credential Providers
-export const S3_PROVIDER_PRESETS = ['aws', 'hetzner', 'backblaze', 'wasabi', 'minio', 'cloudflare', 'railway', 'custom'] as const;
+export const S3_PROVIDER_PRESETS = ['aws', 'hetzner', 'cloudflare', 'railway', 'custom'] as const;
 export type S3ProviderPreset = typeof S3_PROVIDER_PRESETS[number];
 
 export interface S3CredentialConfig {
