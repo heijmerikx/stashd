@@ -2,13 +2,43 @@ import pg from 'pg';
 
 const { Pool } = pg;
 
-export const pool = new Pool({
+// Pool instance - can be reconfigured for testing
+let pool: pg.Pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '5432'),
   database: process.env.DB_NAME || 'stashd',
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || 'postgres',
 });
+
+/**
+ * Get the current database pool
+ */
+export function getPool(): pg.Pool {
+  return pool;
+}
+
+/**
+ * Set a custom pool (used for testing)
+ */
+export function setPool(customPool: pg.Pool): void {
+  pool = customPool;
+}
+
+/**
+ * Reinitialize the pool with current environment variables
+ * Useful after environment variables have been set (e.g., by Testcontainers)
+ */
+export function reinitializePool(): pg.Pool {
+  pool = new Pool({
+    host: process.env.DB_HOST || 'localhost',
+    port: parseInt(process.env.DB_PORT || '5432'),
+    database: process.env.DB_NAME || 'stashd',
+    user: process.env.DB_USER || 'postgres',
+    password: process.env.DB_PASSWORD || 'postgres',
+  });
+  return pool;
+}
 
 // User queries
 export async function getUserByEmail(email: string) {
@@ -70,3 +100,71 @@ export async function deleteUser(id: number) {
   );
   return result.rowCount !== null && result.rowCount > 0;
 }
+
+// TOTP (Two-Factor Authentication) queries
+export async function getUserTotpStatus(id: number) {
+  const result = await pool.query(
+    'SELECT totp_enabled, totp_secret IS NOT NULL as has_secret FROM users WHERE id = $1',
+    [id]
+  );
+  return result.rows[0] || null;
+}
+
+export async function setUserTotpSecret(id: number, encryptedSecret: string) {
+  const result = await pool.query(
+    'UPDATE users SET totp_secret = $1 WHERE id = $2 RETURNING id',
+    [encryptedSecret, id]
+  );
+  return result.rowCount !== null && result.rowCount > 0;
+}
+
+export async function enableUserTotp(id: number, encryptedBackupCodes: string[]) {
+  const result = await pool.query(
+    'UPDATE users SET totp_enabled = TRUE, totp_backup_codes = $1 WHERE id = $2 AND totp_secret IS NOT NULL RETURNING id',
+    [encryptedBackupCodes, id]
+  );
+  return result.rowCount !== null && result.rowCount > 0;
+}
+
+export async function disableUserTotp(id: number) {
+  const result = await pool.query(
+    'UPDATE users SET totp_enabled = FALSE, totp_secret = NULL, totp_backup_codes = NULL WHERE id = $1 RETURNING id',
+    [id]
+  );
+  return result.rowCount !== null && result.rowCount > 0;
+}
+
+export async function getUserTotpSecret(id: number) {
+  const result = await pool.query(
+    'SELECT totp_secret FROM users WHERE id = $1 AND totp_enabled = TRUE',
+    [id]
+  );
+  return result.rows[0]?.totp_secret || null;
+}
+
+export async function getUserTotpSecretForSetup(id: number) {
+  const result = await pool.query(
+    'SELECT totp_secret FROM users WHERE id = $1',
+    [id]
+  );
+  return result.rows[0]?.totp_secret || null;
+}
+
+export async function getUserBackupCodes(id: number) {
+  const result = await pool.query(
+    'SELECT totp_backup_codes FROM users WHERE id = $1 AND totp_enabled = TRUE',
+    [id]
+  );
+  return result.rows[0]?.totp_backup_codes || null;
+}
+
+export async function updateUserBackupCodes(id: number, encryptedBackupCodes: string[]) {
+  const result = await pool.query(
+    'UPDATE users SET totp_backup_codes = $1 WHERE id = $2 RETURNING id',
+    [encryptedBackupCodes, id]
+  );
+  return result.rowCount !== null && result.rowCount > 0;
+}
+
+// For backwards compatibility, also export pool directly
+export { pool };

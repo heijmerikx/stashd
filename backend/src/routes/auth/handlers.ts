@@ -3,9 +3,18 @@
  */
 
 import { Request, Response } from 'express';
-import { getUserByEmail, createUser, getUserCount } from '../../db/index.js';
+import {
+  getUserByEmail,
+  createUser,
+  getUserCount,
+  getUserTotpStatus,
+  getUserTotpSecret,
+  getUserBackupCodes,
+  updateUserBackupCodes,
+} from '../../db/index.js';
 import { hashPassword, verifyPassword, validatePasswordStrength } from '../../utils/password.js';
 import { generateTokens, generateAccessToken, verifyRefreshToken } from '../../utils/jwt.js';
+import { verifyTotpCode, decryptTotpSecret, verifyBackupCode } from '../../utils/totp.js';
 
 // Cookie settings for refresh token
 const REFRESH_TOKEN_COOKIE = 'refreshToken';
@@ -37,7 +46,7 @@ function clearRefreshTokenCookie(res: Response): void {
  */
 export async function login(req: Request, res: Response) {
   try {
-    const { email, password } = req.body;
+    const { email, password, totpCode } = req.body;
 
     const userCount = await getUserCount();
     const existingUser = await getUserByEmail(email);
@@ -83,6 +92,50 @@ export async function login(req: Request, res: Response) {
     if (!isValidPassword) {
       res.status(401).json({ error: 'Invalid credentials' });
       return;
+    }
+
+    // Check if TOTP is enabled for this user
+    const totpStatus = await getUserTotpStatus(existingUser.id);
+    if (totpStatus?.totp_enabled) {
+      // TOTP is required
+      if (!totpCode) {
+        // No code provided - tell client to prompt for TOTP
+        res.status(200).json({
+          requiresTotp: true,
+          message: 'Two-factor authentication required'
+        });
+        return;
+      }
+
+      // Verify TOTP code
+      const encryptedSecret = await getUserTotpSecret(existingUser.id);
+      if (!encryptedSecret) {
+        res.status(500).json({ error: 'TOTP configuration error' });
+        return;
+      }
+
+      const secret = decryptTotpSecret(encryptedSecret);
+      let isValidTotp = verifyTotpCode(totpCode, secret);
+
+      // If TOTP code is invalid, try backup codes
+      if (!isValidTotp) {
+        const encryptedBackupCodes = await getUserBackupCodes(existingUser.id);
+        if (encryptedBackupCodes && encryptedBackupCodes.length > 0) {
+          const backupCodeIndex = verifyBackupCode(totpCode, encryptedBackupCodes);
+          if (backupCodeIndex >= 0) {
+            // Valid backup code - remove it so it can't be reused
+            const updatedCodes = [...encryptedBackupCodes];
+            updatedCodes.splice(backupCodeIndex, 1);
+            await updateUserBackupCodes(existingUser.id, updatedCodes);
+            isValidTotp = true;
+          }
+        }
+      }
+
+      if (!isValidTotp) {
+        res.status(401).json({ error: 'Invalid two-factor authentication code' });
+        return;
+      }
     }
 
     const { accessToken, refreshToken } = generateTokens({ userId: existingUser.id, email: existingUser.email });

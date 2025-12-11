@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { checkFirstUser, login, setUser } from '@/lib/api';
-import { AlertCircle, Loader2, Database, Cloud, Shield, Clock } from 'lucide-react';
+import { AlertCircle, Loader2, Database, Cloud, Shield, Clock, KeyRound } from 'lucide-react';
 import { Logo } from '@/components/logo';
 
 interface LoginPageProps {
@@ -14,10 +14,12 @@ interface LoginPageProps {
 export function LoginPage({ onLoginSuccess }: LoginPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [totpCode, setTotpCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [isFirstUser, setIsFirstUser] = useState<boolean | null>(null);
   const [checkingFirstUser, setCheckingFirstUser] = useState(true);
+  const [requiresTotp, setRequiresTotp] = useState(false);
 
   useEffect(() => {
     checkFirstUser()
@@ -32,16 +34,35 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
     setLoading(true);
 
     try {
-      const response = await login(email, password);
-      // Access token is stored in memory by login()
-      // Refresh token is stored in httpOnly cookie by server
-      setUser(response.user);
-      onLoginSuccess();
+      const response = await login(email, password, requiresTotp ? totpCode : undefined);
+
+      // Check if TOTP is required
+      if (response.requiresTotp) {
+        setRequiresTotp(true);
+        setLoading(false);
+        return;
+      }
+
+      // Login successful
+      if (response.user) {
+        setUser(response.user);
+        onLoginSuccess();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
+      // If TOTP code was wrong, don't reset the requiresTotp state
+      if (!requiresTotp) {
+        setTotpCode('');
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleBackToLogin = () => {
+    setRequiresTotp(false);
+    setTotpCode('');
+    setError('');
   };
 
   if (checkingFirstUser) {
@@ -127,14 +148,30 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
 
           {/* Header */}
           <div className="space-y-2 text-center lg:text-left">
-            <h2 className="text-2xl font-bold tracking-tight">
-              {isFirstUser ? 'Create Account' : 'Welcome back'}
-            </h2>
-            <p className="text-muted-foreground">
-              {isFirstUser
-                ? 'No users exist yet. Create the first account to get started.'
-                : 'Enter your credentials to access your account'}
-            </p>
+            {requiresTotp ? (
+              <>
+                <div className="flex items-center gap-2 justify-center lg:justify-start">
+                  <KeyRound className="h-6 w-6 text-primary" />
+                  <h2 className="text-2xl font-bold tracking-tight">
+                    Two-Factor Authentication
+                  </h2>
+                </div>
+                <p className="text-muted-foreground">
+                  Enter the 6-digit code from your authenticator app, or use a backup code.
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className="text-2xl font-bold tracking-tight">
+                  {isFirstUser ? 'Create Account' : 'Welcome back'}
+                </h2>
+                <p className="text-muted-foreground">
+                  {isFirstUser
+                    ? 'No users exist yet. Create the first account to get started.'
+                    : 'Enter your credentials to access your account'}
+                </p>
+              </>
+            )}
           </div>
 
           {/* Form */}
@@ -146,43 +183,84 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
               </Alert>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={loading}
-                className="h-11"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={loading}
-                className="h-11"
-              />
-              {isFirstUser && (
+            {requiresTotp ? (
+              /* TOTP Code Input */
+              <div className="space-y-2">
+                <Label htmlFor="totpCode">Authentication Code</Label>
+                <Input
+                  id="totpCode"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[A-Za-z0-9]*"
+                  placeholder="Enter 6-digit code or backup code"
+                  value={totpCode}
+                  onChange={(e) => setTotpCode(e.target.value.toUpperCase())}
+                  required
+                  disabled={loading}
+                  className="h-11 text-center text-lg tracking-widest"
+                  autoFocus
+                  autoComplete="one-time-code"
+                />
                 <p className="text-xs text-muted-foreground">
-                  Password must be at least 12 characters and include uppercase, lowercase, number, and special character.
+                  Open your authenticator app to view your code
                 </p>
+              </div>
+            ) : (
+              /* Email and Password Inputs */
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    disabled={loading}
+                    className="h-11"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    disabled={loading}
+                    className="h-11"
+                  />
+                  {isFirstUser && (
+                    <p className="text-xs text-muted-foreground">
+                      Password must be at least 12 characters and include uppercase, lowercase, number, and special character.
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+
+            <div className="space-y-3">
+              <Button type="submit" className="w-full h-11" disabled={loading}>
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {requiresTotp ? 'Verify' : isFirstUser ? 'Create Account' : 'Sign in'}
+              </Button>
+
+              {requiresTotp && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full"
+                  onClick={handleBackToLogin}
+                  disabled={loading}
+                >
+                  Back to login
+                </Button>
               )}
             </div>
-
-            <Button type="submit" className="w-full h-11" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isFirstUser ? 'Create Account' : 'Sign in'}
-            </Button>
           </form>
         </div>
       </div>

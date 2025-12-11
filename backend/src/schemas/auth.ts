@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const loginSchema = z.object({
   email: z.string().email('Invalid email format').max(255),
   password: z.string().min(1, 'Password is required').max(255),
+  totpCode: z.string().max(20).optional(), // 6 digits for TOTP, up to 8 chars for backup codes
 });
 
 export const registerSchema = z.object({

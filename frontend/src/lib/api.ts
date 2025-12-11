@@ -3,10 +3,11 @@ import { getConfig } from './config';
 const API_BASE = getConfig('API_URL');
 
 interface LoginResponse {
-  token: string;
-  user: { id: number; email: string; name?: string };
+  token?: string;
+  user?: { id: number; email: string; name?: string };
   message?: string;
   isFirstUser?: boolean;
+  requiresTotp?: boolean;
 }
 
 interface ErrorResponse {
@@ -29,14 +30,14 @@ export async function checkFirstUser(): Promise<boolean> {
   return data.isFirstUser;
 }
 
-export async function login(email: string, password: string): Promise<LoginResponse> {
+export async function login(email: string, password: string, totpCode?: string): Promise<LoginResponse> {
   const response = await fetch(`${API_BASE}/auth/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     credentials: 'include', // Include cookies
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, totpCode }),
   });
 
   const data = await response.json();
@@ -46,8 +47,10 @@ export async function login(email: string, password: string): Promise<LoginRespo
     throw new Error(error.details ? error.details.join(', ') : error.error);
   }
 
-  // Store access token in memory
-  accessToken = data.token;
+  // Store access token in memory (if provided - not provided when TOTP required)
+  if (data.token) {
+    accessToken = data.token;
+  }
 
   return data as LoginResponse;
 }
@@ -866,6 +869,53 @@ export async function changePassword(data: { currentPassword: string; newPasswor
   return apiFetch('/profile/change-password', {
     method: 'POST',
     body: JSON.stringify(data),
+  });
+}
+
+// TOTP Two-Factor Authentication
+export interface TotpStatus {
+  enabled: boolean;
+  hasSecret: boolean;
+}
+
+export interface TotpSetupResponse {
+  secret: string;
+  qrCode: string;
+}
+
+export interface TotpEnableResponse {
+  message: string;
+  backupCodes: string[];
+}
+
+export async function getTotpStatus(): Promise<TotpStatus> {
+  return apiFetch('/profile/totp/status');
+}
+
+export async function setupTotp(): Promise<TotpSetupResponse> {
+  return apiFetch('/profile/totp/setup', {
+    method: 'POST',
+  });
+}
+
+export async function verifyAndEnableTotp(code: string): Promise<TotpEnableResponse> {
+  return apiFetch('/profile/totp/verify', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+}
+
+export async function disableTotp(data: { password?: string; code?: string }): Promise<{ message: string }> {
+  return apiFetch('/profile/totp/disable', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function regenerateBackupCodes(code: string): Promise<TotpEnableResponse> {
+  return apiFetch('/profile/totp/regenerate-backup-codes', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
   });
 }
 
