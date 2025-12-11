@@ -23,9 +23,7 @@ import {
   validateConfig,
   testDestination,
   resolveS3Config,
-  listDestinationFiles,
   browseDestinationFiles,
-  CREDENTIAL_SENSITIVE_FIELDS,
 } from './helpers.js';
 
 /**
@@ -406,42 +404,6 @@ export async function testDestinationConnectivity(req: AuthRequest, res: Respons
   } catch (error) {
     console.error('Error testing backup destination:', error);
     res.status(500).json({ error: 'Failed to test backup destination' });
-  }
-}
-
-/**
- * GET /:id/files - List files in destination
- */
-export async function getFiles(req: AuthRequest, res: Response) {
-  try {
-    const id = parseInt(req.params.id);
-    const limit = Math.min(parseInt(req.query.limit as string) || 100, 1000); // Default 100, max 1000
-    const destination = await getBackupDestinationById(id);
-
-    if (!destination) {
-      res.status(404).json({ error: 'Backup destination not found' });
-      return;
-    }
-
-    // For S3, resolve credentials from provider
-    let resolvedConfig: Record<string, unknown> = destination.config as unknown as Record<string, unknown>;
-    if (destination.type === 's3' && destination.credential_provider_id) {
-      const provider = await getCredentialProviderById(destination.credential_provider_id);
-      if (!provider) {
-        res.status(400).json({ error: 'Credential provider not found' });
-        return;
-      }
-      resolvedConfig = resolveS3Config(
-        resolvedConfig,
-        provider.config as unknown as Record<string, unknown>
-      );
-    }
-
-    const files = await listDestinationFiles(destination.type, resolvedConfig, limit);
-    res.json({ files, limit });
-  } catch (error) {
-    console.error('Error listing destination files:', error);
-    res.status(500).json({ error: 'Failed to list destination files' });
   }
 }
 

@@ -5,7 +5,7 @@
 import { stat, mkdir, access, constants, readdir } from 'fs/promises';
 import path from 'path';
 import { decryptSensitiveFields } from '../../utils/encryption.js';
-import { testS3Connection, listS3Files, browseS3, type S3BrowseResult } from '../../services/s3-service.js';
+import { testS3Connection, browseS3, type S3BrowseResult } from '../../services/s3-service.js';
 import { S3DestinationConfigFull } from '../../db/backup-destinations.js';
 import { maskValue } from '../helpers/masking.js';
 
@@ -165,68 +165,6 @@ export async function getDirectorySize(dirPath: string): Promise<number> {
   }
 
   return totalSize;
-}
-
-/**
- * List files in a destination
- */
-export async function listDestinationFiles(
-  type: string,
-  config: Record<string, unknown>,
-  limit: number = 100
-): Promise<FileInfo[]> {
-  if (type === 'local') {
-    const destPath = config.path as string;
-
-    try {
-      const entries = await readdir(destPath, { withFileTypes: true });
-      const files: FileInfo[] = [];
-
-      for (const entry of entries) {
-        const filePath = path.join(destPath, entry.name);
-        const stats = await stat(filePath);
-
-        if (entry.isFile()) {
-          files.push({
-            name: entry.name,
-            path: filePath,
-            size: stats.size,
-            lastModified: stats.mtime,
-          });
-        } else if (entry.isDirectory()) {
-          // Include directories (e.g., MongoDB dump folders)
-          const dirSize = await getDirectorySize(filePath);
-          files.push({
-            name: entry.name,
-            path: filePath,
-            size: dirSize,
-            lastModified: stats.mtime,
-          });
-        }
-      }
-
-      // Sort by last modified descending (newest first)
-      files.sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime());
-      // Apply limit
-      return files.slice(0, limit);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        return []; // Directory doesn't exist yet
-      }
-      throw error;
-    }
-  } else if (type === 's3') {
-    const s3Config = config as unknown as S3DestinationConfigFull;
-    const s3Files = await listS3Files(s3Config, undefined, limit);
-    return s3Files.map(f => ({
-      name: f.name,
-      path: f.key,
-      size: f.size,
-      lastModified: f.lastModified,
-    }));
-  }
-
-  return [];
 }
 
 // Browsing types for folder-like navigation

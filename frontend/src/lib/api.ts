@@ -403,15 +403,6 @@ export interface DestinationFile {
   lastModified: string;
 }
 
-export interface DestinationFilesResponse {
-  files: DestinationFile[];
-  limit: number;
-}
-
-export async function getDestinationFiles(id: number, limit: number = 100): Promise<DestinationFilesResponse> {
-  return apiFetch<DestinationFilesResponse>(`/backup-destinations/${id}/files?limit=${limit}`);
-}
-
 // Browse destination files with folder-like navigation
 export interface BrowseItem {
   name: string;

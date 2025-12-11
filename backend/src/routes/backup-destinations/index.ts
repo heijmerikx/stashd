@@ -6,7 +6,6 @@
  * - GET    /compatible/:jobType        Get destinations filtered by compatibility
  * - GET    /                           List all destinations
  * - GET    /:id                        Get single destination
- * - GET    /:id/files                  List files in destination (flat list)
  * - GET    /:id/browse                 Browse files with folder navigation
  * - POST   /                           Create destination
  * - PUT    /:id                        Update destination
@@ -28,7 +27,6 @@ import {
   deleteDestination,
   duplicateDestination,
   testDestinationConnectivity,
-  getFiles,
   browseFiles,
 } from './handlers.js';
 
@@ -43,7 +41,6 @@ router.get('/', listDestinations);
 
 // Single destination routes
 router.get('/:id', getDestination);
-router.get('/:id/files', getFiles);
 router.get('/:id/browse', browseFiles);
 
 // Mutation routes
