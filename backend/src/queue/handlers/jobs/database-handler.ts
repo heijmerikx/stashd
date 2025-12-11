@@ -5,11 +5,11 @@
  *
  * Strategy: Execute backup once to temp storage, then copy to all destinations.
  * This is efficient because the backup data is the same regardless of destination.
+ * Each job gets its own isolated working directory to prevent file collisions.
  */
-import { unlink } from 'fs/promises';
 import { BackupDestination } from '../../../db/backup-destinations.js';
 import { createBackupHistoryEntry, completeBackupHistory, failBackupHistory, updateBackupHeartbeat } from '../../../db/backup-history.js';
-import { executeBackup, executeBackupToTemp, BackupResult } from '../../../services/backup-executor.js';
+import { executeBackup, executeBackupToTemp, createJobWorkDir, cleanupJobWorkDir, BackupResult } from '../../../services/backup-executor.js';
 import { BackupJobContext, DestinationResult, BackupHandler } from '../types.js';
 import { getDestinationHandler } from '../destinations/index.js';
 
@@ -82,6 +82,10 @@ export const databaseHandler: BackupHandler = {
       }
     }
 
+    // Create job-specific working directory to prevent file collisions
+    const workDir = await createJobWorkDir(context.runId);
+    console.log(`Created job work directory: ${workDir}`);
+
     // Execute backup once to temp storage
     console.log(`Executing backup once to temp storage...`);
 
@@ -89,7 +93,7 @@ export const databaseHandler: BackupHandler = {
     let tempFilePath: string;
 
     try {
-      backupResult = await executeBackupToTemp(context.type, decryptedConfig);
+      backupResult = await executeBackupToTemp(context.type, decryptedConfig, workDir);
       tempFilePath = backupResult.filePath;
       console.log(`Backup created: ${tempFilePath} (${backupResult.fileSize} bytes)`);
     } catch (error) {
@@ -103,6 +107,8 @@ export const databaseHandler: BackupHandler = {
         results.push({ destination, error: errorMessage });
       }
 
+      // Clean up work directory on failure
+      await cleanupJobWorkDir(workDir);
       return { results, hasFailures: true };
     }
 
@@ -155,10 +161,8 @@ export const databaseHandler: BackupHandler = {
       }
     }
 
-    // Clean up temp file after all copies are done
-    await unlink(tempFilePath).catch(() => {
-      console.warn(`Failed to clean up temp file: ${tempFilePath}`);
-    });
+    // Clean up entire work directory after all copies are done
+    await cleanupJobWorkDir(workDir);
 
     return { results, hasFailures };
   }

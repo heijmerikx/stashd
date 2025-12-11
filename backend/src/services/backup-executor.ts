@@ -11,6 +11,13 @@ import { uploadToS3, syncS3ToS3, S3SourceConfig } from './s3-service.js';
 import { getCredentialProviderById } from '../db/credential-providers.js';
 
 /**
+ * Generate a timestamp string for backup filenames.
+ */
+function generateTimestamp(): string {
+  return new Date().toISOString().replace(/[:.]/g, '-');
+}
+
+/**
  * Execute a command safely using spawn with argument array (prevents shell injection)
  * @param command - The command to execute
  * @param args - Array of arguments (NOT interpolated into a shell string)
@@ -299,25 +306,48 @@ export async function executeBackup(
 }
 
 /**
+ * Create a job-specific working directory for backup operations.
+ * Each job gets its own isolated directory to prevent file collisions.
+ * @param runId - Unique identifier for this job run
+ * @returns Path to the job's working directory
+ */
+export async function createJobWorkDir(runId: string): Promise<string> {
+  const workDir = path.join(TEMP_BACKUP_DIR, `job-${runId}`);
+  await mkdir(workDir, { recursive: true });
+  return workDir;
+}
+
+/**
+ * Clean up a job's working directory after all operations are complete.
+ * @param workDir - Path to the job's working directory
+ */
+export async function cleanupJobWorkDir(workDir: string): Promise<void> {
+  await rm(workDir, { recursive: true, force: true }).catch((err) => {
+    console.warn(`Failed to clean up job work directory ${workDir}:`, err);
+  });
+}
+
+/**
  * Execute a backup without uploading to any destination.
  * Used when we need to create the backup once and then copy to multiple destinations.
+ * @param type - The backup type (postgres, mysql, mongodb, redis)
+ * @param config - The backup configuration
+ * @param workDir - Job-specific working directory (created via createJobWorkDir)
  */
 export async function executeBackupToTemp(
   type: string,
-  config: object
+  config: object,
+  workDir: string
 ): Promise<BackupResult> {
-  // Always use temp directory for initial backup
-  await mkdir(TEMP_BACKUP_DIR, { recursive: true });
-
   switch (type) {
     case 'postgres':
-      return executePostgresBackup(config as PostgresConfig, TEMP_BACKUP_DIR);
+      return executePostgresBackup(config as PostgresConfig, workDir);
     case 'mongodb':
-      return executeMongoDBBackup(config as MongoDBConfig, TEMP_BACKUP_DIR);
+      return executeMongoDBBackup(config as MongoDBConfig, workDir);
     case 'mysql':
-      return executeMySQLBackup(config as MySQLConfig, TEMP_BACKUP_DIR);
+      return executeMySQLBackup(config as MySQLConfig, workDir);
     case 'redis':
-      return executeRedisBackup(config as RedisConfig, TEMP_BACKUP_DIR);
+      return executeRedisBackup(config as RedisConfig, workDir);
     default:
       throw new Error(`Unsupported backup type: ${type}`);
   }
@@ -435,7 +465,7 @@ async function executePostgresBackup(config: PostgresConfig, backupDir: string):
   const username = validateSafeString(config.username, 'username');
   const database = validateSafeString(config.database, 'database');
 
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const timestamp = generateTimestamp();
   const filename = `postgres_${database}_${timestamp}.sql`;
   const filePath = path.join(backupDir, filename);
 
@@ -504,7 +534,7 @@ interface MongoDBConfig {
 }
 
 async function executeMongoDBBackup(config: MongoDBConfig, backupDir: string): Promise<BackupResult> {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const timestamp = generateTimestamp();
   const filename = `mongodb_${timestamp}`;
   const tempDirPath = path.join(backupDir, filename);
 
@@ -571,21 +601,30 @@ async function executeMySQLBackup(config: MySQLConfig, backupDir: string): Promi
   const username = validateSafeString(config.username, 'username');
   const database = validateSafeString(config.database, 'database');
 
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const timestamp = generateTimestamp();
   const filename = `mysql_${database}_${timestamp}.sql`;
   const tempFilePath = path.join(backupDir, filename);
 
   // Build argument array (safe from injection)
   // Use defaults-extra-file for password to avoid exposing it on command line
+  // Note: MariaDB mysqldump doesn't use --ssl flag; SSL is enabled by default when available
+  // We only need to explicitly disable SSL if ssl=false
   const useSSL = config.ssl !== false; // Default to true
   const args = [
     '-h', host,
     '-P', String(port),
     '-u', username,
-    useSSL ? '--ssl' : '--skip-ssl',
     '--result-file', tempFilePath,
-    database
   ];
+
+  // Only add SSL-related flags if explicitly disabling SSL
+  // MariaDB enables SSL automatically when the server supports it
+  if (!useSSL) {
+    args.push('--skip-ssl');
+  }
+
+  // Add database name last
+  args.push(database);
 
   // If password is provided, use defaults-extra-file method (more secure than -p)
   let defaultsFilePath: string | null = null;
@@ -604,7 +643,21 @@ async function executeMySQLBackup(config: MySQLConfig, backupDir: string): Promi
     const { stdout, stderr } = await execCommand('mysqldump', args);
     if (stdout) logLines.push(`[stdout] ${stdout}`);
     if (stderr) logLines.push(`[stderr] ${stderr}`);
-    logLines.push(`[${new Date().toISOString()}] Dump completed successfully`);
+
+    // Verify the output file was actually created
+    // mysqldump can exit 0 but fail to write the file in some edge cases
+    try {
+      const fileStats = await stat(tempFilePath);
+      if (fileStats.size === 0) {
+        throw new Error('mysqldump produced an empty file - check database permissions and connectivity');
+      }
+      logLines.push(`[${new Date().toISOString()}] Dump completed successfully (${fileStats.size} bytes)`);
+    } catch (statError) {
+      if ((statError as NodeJS.ErrnoException).code === 'ENOENT') {
+        throw new Error('mysqldump did not create output file - the command may have failed silently');
+      }
+      throw statError;
+    }
   } catch (error: unknown) {
     const execError = error as { stderr?: string; stdout?: string; message?: string };
     if (execError.stdout) logLines.push(`[stdout] ${execError.stdout}`);
@@ -653,7 +706,7 @@ async function executeRedisBackup(config: RedisConfig, backupDir: string): Promi
   const port = validatePort(config.port);
   const database = config.database ?? 0;
 
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const timestamp = generateTimestamp();
   const logLines: string[] = [];
   logLines.push(`[${new Date().toISOString()}] Starting Redis backup`);
   logLines.push(`[${new Date().toISOString()}] Target: ${host}:${port}, database: ${database}, TLS: ${config.tls ? 'yes' : 'no'}`);
@@ -821,7 +874,7 @@ async function executeS3Backup(
     const destPath = localConfig.path;
 
     // Create timestamp-based subdirectory for this sync
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const timestamp = generateTimestamp();
     const syncDir = path.join(destPath, `s3-copy_${sourceConfig.bucket}_${timestamp}`);
     await mkdir(syncDir, { recursive: true });
 
