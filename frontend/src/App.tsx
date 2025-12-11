@@ -16,6 +16,20 @@ import { AuditLogPage } from '@/pages/audit-log';
 import { CredentialProvidersPage } from '@/pages/credential-providers';
 import { TeamPage } from '@/pages/team';
 import { getUser, getProfile, updateStoredUser, AUTH_EXPIRED_EVENT, tryRestoreSession } from '@/lib/api';
+import type { User } from '@/lib/api';
+
+interface ProtectedLayoutProps {
+  authenticated: boolean;
+  user: User | null;
+  onLogout: () => void;
+}
+
+function ProtectedLayout({ authenticated, user, onLogout }: ProtectedLayoutProps) {
+  if (!authenticated || !user) {
+    return <Navigate to="/login" replace />;
+  }
+  return <DashboardLayout user={user} onLogout={onLogout} />;
+}
 
 function App() {
   const [authenticated, setAuthenticated] = useState(false);
@@ -77,13 +91,6 @@ function App() {
     setUserState(null);
   };
 
-  const ProtectedLayout = () => {
-    if (!authenticated || !user) {
-      return <Navigate to="/login" replace />;
-    }
-    return <DashboardLayout user={user} onLogout={handleLogout} />;
-  };
-
   // Show loading while restoring session
   if (isRestoring) {
     return (
@@ -107,7 +114,7 @@ function App() {
             )
           }
         />
-        <Route element={<ProtectedLayout />}>
+        <Route element={<ProtectedLayout authenticated={authenticated} user={user} onLogout={handleLogout} />}>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/backup-jobs" element={<BackupJobsPage />} />
           <Route path="/backup-jobs/:id" element={<BackupJobDetailPage />} />

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -75,15 +75,7 @@ export function SettingsPage() {
     document.title = 'Queue - Stashd';
   }, []);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  useEffect(() => {
-    loadJobs();
-  }, [statusFilter]);
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
       const [statsData, jobsData, scheduledData, workersData] = await Promise.all([
         getQueueStats(),
@@ -100,16 +92,24 @@ export function SettingsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [statusFilter]);
 
-  async function loadJobs() {
+  const loadJobs = useCallback(async () => {
     try {
       const jobsData = await getQueueJobs(statusFilter);
       setJobs(jobsData);
     } catch (error) {
       console.error('Failed to load jobs:', error);
     }
-  }
+  }, [statusFilter]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    loadJobs();
+  }, [loadJobs]);
 
   async function handleRefresh() {
     setRefreshing(true);

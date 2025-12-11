@@ -2,9 +2,15 @@ import { getConfig } from './config';
 
 const API_BASE = getConfig('API_URL');
 
+export interface User {
+  id: number;
+  email: string;
+  name?: string;
+}
+
 interface LoginResponse {
   token?: string;
-  user?: { id: number; email: string; name?: string };
+  user?: User;
   message?: string;
   isFirstUser?: boolean;
   requiresTotp?: boolean;
@@ -75,11 +81,11 @@ export function dispatchAuthExpired(): void {
   window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
 }
 
-export function setUser(user: { id: number; email: string; name?: string }): void {
+export function setUser(user: User): void {
   localStorage.setItem('user', JSON.stringify(user));
 }
 
-export function getUser(): { id: number; email: string; name?: string } | null {
+export function getUser(): User | null {
   const user = localStorage.getItem('user');
   return user ? JSON.parse(user) : null;
 }

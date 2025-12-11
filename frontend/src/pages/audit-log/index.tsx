@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -53,11 +53,7 @@ export function AuditLogPage() {
     document.title = 'Audit Log - Stashd';
   }, []);
 
-  useEffect(() => {
-    loadAuditLog();
-  }, [page]);
-
-  async function loadAuditLog() {
+  const loadAuditLog = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getAllAuditLog(page, limit);
@@ -68,7 +64,11 @@ export function AuditLogPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [page, limit]);
+
+  useEffect(() => {
+    loadAuditLog();
+  }, [loadAuditLog]);
 
   function getActionIcon(action: string) {
     switch (action) {
