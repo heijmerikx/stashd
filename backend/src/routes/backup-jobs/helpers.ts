@@ -13,6 +13,7 @@ const SENSITIVE_FIELDS: Record<string, string[]> = {
   postgres: ['password'],
   mysql: ['password'],
   mongodb: [], // connection_string handled separately
+  redis: ['password'],
   files: [],
   s3: ['access_key_id', 'secret_access_key']
 };
@@ -112,7 +113,7 @@ export function maskSensitiveConfig(type: string, config: unknown): unknown {
   // Decrypt first, then mask
   const decrypted = decryptConfig(type, config as Record<string, unknown>);
 
-  if (type === 'postgres' || type === 'mysql') {
+  if (type === 'postgres' || type === 'mysql' || type === 'redis') {
     return {
       ...decrypted,
       password: decrypted.password ? maskValue(decrypted.password as string) : undefined
@@ -232,7 +233,7 @@ export function mergeConfigWithExisting(
 ): object {
   const existing = existingConfig as Record<string, unknown>;
 
-  if ((type === 'postgres' || type === 'mysql') && isMaskedValue(newConfig.password)) {
+  if ((type === 'postgres' || type === 'mysql' || type === 'redis') && isMaskedValue(newConfig.password)) {
     return { ...newConfig, password: existing.password };
   }
 
