@@ -6,6 +6,8 @@ interface SettingsState {
   setRecentBackupsLimit: (limit: number) => void;
   backupJobsPageSize: number;
   setBackupJobsPageSize: (size: number) => void;
+  destinationsPageSize: number;
+  setDestinationsPageSize: (size: number) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -15,6 +17,8 @@ export const useSettingsStore = create<SettingsState>()(
       setRecentBackupsLimit: (limit) => set({ recentBackupsLimit: limit }),
       backupJobsPageSize: 10,
       setBackupJobsPageSize: (size) => set({ backupJobsPageSize: size }),
+      destinationsPageSize: 10,
+      setDestinationsPageSize: (size) => set({ destinationsPageSize: size }),
     }),
     {
       name: 'stashd-settings',

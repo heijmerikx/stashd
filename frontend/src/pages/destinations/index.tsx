@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -29,6 +29,14 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
+import {
   getBackupDestinations,
   createBackupDestination,
   updateBackupDestination,
@@ -42,9 +50,12 @@ import {
   type CredentialProvider,
 } from '@/lib/api';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Plus, Pencil, Trash2, Cloud, Loader2, CheckCircle, AlertCircle, Copy, Key, XCircle, HardDrive, Info } from 'lucide-react';
+import { Plus, Pencil, Trash2, Cloud, Loader2, CheckCircle, AlertCircle, Copy, Key, XCircle, HardDrive, Info, Search, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
+import { useSettingsStore } from '@/stores/settings';
+
+const PAGE_SIZE_OPTIONS = [5, 10, 15, 20, 25, 50];
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
@@ -54,7 +65,31 @@ function formatBytes(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
+function getDestinationLocation(destination: BackupDestination): string {
+  if (destination.type === 'local') {
+    const config = destination.config as LocalDestinationConfig;
+    return config.path;
+  }
+
+  const s3Config = destination.config as S3DestinationConfig;
+  const provider = destination.credential_provider;
+  if (provider) {
+    const providerConfig = provider.config as { endpoint?: string; region?: string };
+    if (providerConfig.endpoint) {
+      try {
+        const url = new URL(providerConfig.endpoint);
+        return `${url.hostname}/${s3Config.bucket}`;
+      } catch {
+        return `${providerConfig.endpoint}/${s3Config.bucket}`;
+      }
+    }
+    return `s3://${providerConfig.region}/${s3Config.bucket}`;
+  }
+  return `s3://${s3Config.bucket}`;
+}
+
 export function DestinationsPage() {
+  const { destinationsPageSize, setDestinationsPageSize } = useSettingsStore();
   const [destinations, setDestinations] = useState<BackupDestination[]>([]);
   const [credentialProviders, setCredentialProviders] = useState<CredentialProvider[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,6 +100,81 @@ export function DestinationsPage() {
   const [testingId, setTestingId] = useState<number | null>(null);
   const [testResult, setTestResult] = useState<{ id: number; success: boolean } | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<number | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortField, setSortField] = useState<'name' | 'provider' | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  // Filter and sort destinations
+  const filteredDestinations = useMemo(() => {
+    let result = [...destinations];
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(dest =>
+        dest.name.toLowerCase().includes(query) ||
+        dest.type.toLowerCase().includes(query) ||
+        getDestinationLocation(dest).toLowerCase().includes(query)
+      );
+    }
+
+    // Sort
+    if (sortField) {
+      result.sort((a, b) => {
+        let comparison = 0;
+        switch (sortField) {
+          case 'name':
+            comparison = a.name.localeCompare(b.name);
+            break;
+          case 'provider': {
+            // Sort by credential provider name (local destinations have no provider)
+            const aProvider = a.type === 'local' ? 'Local' : (a.credential_provider?.name || 'unknown');
+            const bProvider = b.type === 'local' ? 'Local' : (b.credential_provider?.name || 'unknown');
+            comparison = aProvider.localeCompare(bProvider);
+            break;
+          }
+        }
+        return sortDirection === 'desc' ? -comparison : comparison;
+      });
+    }
+
+    return result;
+  }, [destinations, searchQuery, sortField, sortDirection]);
+
+  function handleSort(field: 'name' | 'provider') {
+    if (sortField === field) {
+      if (sortDirection === 'asc') {
+        setSortDirection('desc');
+      } else {
+        setSortField(null);
+        setSortDirection('asc');
+      }
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  }
+
+  function getSortIcon(field: 'name' | 'provider') {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-3 w-3 ml-1 opacity-50" />;
+    }
+    return sortDirection === 'asc'
+      ? <ArrowUp className="h-3 w-3 ml-1" />
+      : <ArrowDown className="h-3 w-3 ml-1" />;
+  }
+
+  const totalPages = Math.ceil(filteredDestinations.length / destinationsPageSize);
+  const paginatedDestinations = filteredDestinations.slice(
+    currentPage * destinationsPageSize,
+    (currentPage + 1) * destinationsPageSize
+  );
+
+  // Reset to first page when search changes
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [searchQuery]);
 
   // Form state
   const [name, setName] = useState('');
@@ -245,36 +355,14 @@ export function DestinationsPage() {
     }
   }
 
-  function getDestinationLocation(destination: BackupDestination): string {
-    if (destination.type === 'local') {
-      const config = destination.config as LocalDestinationConfig;
-      return config.path;
-    }
-
-    const s3Config = destination.config as S3DestinationConfig;
-    const provider = destination.credential_provider;
-    if (provider) {
-      const providerConfig = provider.config as { endpoint?: string; region?: string };
-      if (providerConfig.endpoint) {
-        try {
-          const url = new URL(providerConfig.endpoint);
-          return `${url.hostname}/${s3Config.bucket}`;
-        } catch {
-          return `${providerConfig.endpoint}/${s3Config.bucket}`;
-        }
-      }
-      return `s3://${providerConfig.region}/${s3Config.bucket}`;
-    }
-    return `s3://${s3Config.bucket}`;
-  }
-
   // Skeleton table row component
   const SkeletonRow = () => (
     <TableRow>
+      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
       <TableCell>
         <div className="flex items-center gap-2">
           <Skeleton className="h-4 w-4" />
-          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-4 w-12" />
         </div>
       </TableCell>
       <TableCell><Skeleton className="h-4 w-40" /></TableCell>
@@ -317,6 +405,7 @@ export function DestinationsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
+                  <TableHead>Provider</TableHead>
                   <TableHead>Location</TableHead>
                   <TableHead>Backups</TableHead>
                   <TableHead>Status</TableHead>
@@ -352,111 +441,226 @@ export function DestinationsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Destinations</CardTitle>
-          <CardDescription>
-            {destinations.length} destination{destinations.length !== 1 && 's'} configured
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Destinations</CardTitle>
+              <CardDescription>
+                {filteredDestinations.length === destinations.length
+                  ? `${destinations.length} destination${destinations.length !== 1 ? 's' : ''} configured`
+                  : `${filteredDestinations.length} of ${destinations.length} destination${destinations.length !== 1 ? 's' : ''}`}
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              {(searchQuery || sortField) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSortField(null);
+                    setSortDirection('asc');
+                  }}
+                  className="h-9 px-2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Reset
+                </Button>
+              )}
+              <div className="relative w-64">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search destinations..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 h-9"
+                />
+              </div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {destinations.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
               No backup destinations configured yet.
             </p>
+          ) : filteredDestinations.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              No destinations match your search.
+            </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Backups</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {destinations.map((destination) => (
-                  <TableRow key={destination.id}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        {destination.type === 'local' ? (
-                          <HardDrive className="h-4 w-4" />
-                        ) : (
-                          <Cloud className="h-4 w-4" />
-                        )}
-                        {destination.name}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {getDestinationLocation(destination)}
-                    </TableCell>
-                    <TableCell>
-                      {destination.stats ? (
-                        <span className="text-sm">
-                          {destination.stats.successful_backups} ({formatBytes(destination.stats.total_size)})
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={destination.enabled ? 'default' : 'secondary'}>
-                        {destination.enabled ? 'Enabled' : 'Disabled'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleTest(destination.id)}
-                        disabled={testingId === destination.id}
-                        title="Test destination"
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>
+                      <button
+                        onClick={() => handleSort('name')}
+                        className="flex items-center hover:text-foreground cursor-pointer"
                       >
-                        {testingId === destination.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : testResult?.id === destination.id ? (
-                          testResult.success ? (
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <XCircle className="h-4 w-4 text-red-500" />
-                          )
-                        ) : (
-                          <CheckCircle className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDuplicate(destination.id)}
-                        disabled={duplicatingId === destination.id}
-                        title="Duplicate destination"
+                        Name
+                        {getSortIcon('name')}
+                      </button>
+                    </TableHead>
+                    <TableHead>
+                      <button
+                        onClick={() => handleSort('provider')}
+                        className="flex items-center hover:text-foreground cursor-pointer"
                       >
-                        {duplicatingId === destination.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openEditDialog(destination)}
-                        title="Edit destination"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(destination.id)}
-                        title="Delete destination"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
+                        Provider
+                        {getSortIcon('provider')}
+                      </button>
+                    </TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Backups</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {paginatedDestinations.map((destination) => (
+                    <TableRow key={destination.id}>
+                      <TableCell className="font-medium">
+                        {destination.name}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {destination.type === 'local' ? (
+                            <HardDrive className="h-4 w-4" />
+                          ) : (
+                            <Cloud className="h-4 w-4" />
+                          )}
+                          {destination.type === 'local' ? 'Local' : (destination.credential_provider?.name || 'S3')}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {getDestinationLocation(destination)}
+                      </TableCell>
+                      <TableCell>
+                        {destination.stats ? (
+                          <span className="text-sm">
+                            {destination.stats.successful_backups} ({formatBytes(destination.stats.total_size)})
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={destination.enabled ? 'default' : 'secondary'}>
+                          {destination.enabled ? 'Enabled' : 'Disabled'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleTest(destination.id)}
+                          disabled={testingId === destination.id}
+                          title="Test destination"
+                        >
+                          {testingId === destination.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : testResult?.id === destination.id ? (
+                            testResult.success ? (
+                              <CheckCircle className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <XCircle className="h-4 w-4 text-red-500" />
+                            )
+                          ) : (
+                            <CheckCircle className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDuplicate(destination.id)}
+                          disabled={duplicatingId === destination.id}
+                          title="Duplicate destination"
+                        >
+                          {duplicatingId === destination.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditDialog(destination)}
+                          title="Edit destination"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(destination.id)}
+                          title="Delete destination"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              <div className="flex items-center justify-between mt-4">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>Rows per page</span>
+                  <Select
+                    value={String(destinationsPageSize)}
+                    onValueChange={(value) => {
+                      setDestinationsPageSize(Number(value));
+                      setCurrentPage(0);
+                    }}
+                  >
+                    <SelectTrigger className="w-16 h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAGE_SIZE_OPTIONS.map((size) => (
+                        <SelectItem key={size} value={String(size)}>
+                          {size}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {totalPages > 1 && (
+                  <Pagination className="mx-0 w-auto">
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+                          className={currentPage === 0 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        const pageNum = currentPage < 3 ? i : currentPage - 2 + i;
+                        if (pageNum >= totalPages) return null;
+                        return (
+                          <PaginationItem key={pageNum}>
+                            <PaginationLink
+                              onClick={() => setCurrentPage(pageNum)}
+                              isActive={pageNum === currentPage}
+                              className="cursor-pointer"
+                            >
+                              {pageNum + 1}
+                            </PaginationLink>
+                          </PaginationItem>
+                        );
+                      })}
+                      <PaginationItem>
+                        <PaginationNext
+                          onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
+                          className={currentPage >= totalPages - 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                )}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
